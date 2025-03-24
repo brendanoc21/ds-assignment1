@@ -2,7 +2,7 @@
 
 __Name:__ Brendan O'Connor
 
-__Demo:__ https://youtu.be/uUU62kWyImk
+__Demo:__ https://youtu.be/bOwgFu2VIew
 
 ### Context.
 
@@ -28,8 +28,9 @@ Table item attributes:
 [ Provide a bullet-point list of the app's endpoints (excluding the Auth API) you have successfully implemented. ]
 e.g.
  
-+ POST /book - add a new 'book'.
-+ GET /book/{bookId}/ - Get all the 'books' with a specified id.
++ POST /books - add a new 'book'.
++ GET /books - Get all 'books'.
++ GET /books/{bookId}/ - Get all the 'books' with a specified id.
 
 
 ### Features.
