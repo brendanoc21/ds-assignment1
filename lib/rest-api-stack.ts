@@ -6,7 +6,7 @@ import * as custom from "aws-cdk-lib/custom-resources";
 import { Construct } from "constructs";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { generateBatch } from "../shared/util";
-import { movies, movieCasts } from "../seed/movies";
+import { books } from "../seed/books";
 import * as apig from "aws-cdk-lib/aws-apigateway";
 
 export class RestAPIStack extends cdk.Stack {
@@ -14,131 +14,97 @@ export class RestAPIStack extends cdk.Stack {
     super(scope, id, props);
 
     // Tables 
-    const moviesTable = new dynamodb.Table(this, "MoviesTable", {
+    const booksTable = new dynamodb.Table(this, "BooksTable", {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       partitionKey: { name: "id", type: dynamodb.AttributeType.NUMBER },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      tableName: "Movies",
+      tableName: "Books",
     });
-
-    const movieCastsTable = new dynamodb.Table(this, "MovieCastTable", {
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      partitionKey: { name: "movieId", type: dynamodb.AttributeType.NUMBER },
-      sortKey: { name: "actorName", type: dynamodb.AttributeType.STRING },
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      tableName: "MovieCast",
-    });
-
-    movieCastsTable.addLocalSecondaryIndex({
-      indexName: "roleIx",
-      sortKey: { name: "roleName", type: dynamodb.AttributeType.STRING },
-    });
-
-
     
     // Functions 
-    const getMovieByIdFn = new lambdanode.NodejsFunction(
+    const getBookByIdFn = new lambdanode.NodejsFunction(
       this,
-      "GetMovieByIdFn",
+      "GetBookByIdFn",
       {
         architecture: lambda.Architecture.ARM_64,
         runtime: lambda.Runtime.NODEJS_18_X,
-        entry: `${__dirname}/../lambdas/getMovieById.ts`,
+        entry: `${__dirname}/../lambdas/getBookById.ts`,
         timeout: cdk.Duration.seconds(10),
         memorySize: 128,
         environment: {
-          TABLE_NAME: moviesTable.tableName,
-          CAST_TABLE_NAME: movieCastsTable.tableName,
+          TABLE_NAME: booksTable.tableName,
           REGION: 'eu-west-1',
         },
       }
       );
       
-      const getAllMoviesFn = new lambdanode.NodejsFunction(
+      const getAllBooksFn = new lambdanode.NodejsFunction(
         this,
-        "GetAllMoviesFn",
+        "GetAllBooksFn",
         {
           architecture: lambda.Architecture.ARM_64,
           runtime: lambda.Runtime.NODEJS_18_X,
-          entry: `${__dirname}/../lambdas/getAllMovies.ts`,
+          entry: `${__dirname}/../lambdas/getAllBooks.ts`,
           timeout: cdk.Duration.seconds(10),
           memorySize: 128,
           environment: {
-            TABLE_NAME: moviesTable.tableName,
+            TABLE_NAME: booksTable.tableName,
             REGION: 'eu-west-1',
           },
         }
         );
 
-        const newMovieFn = new lambdanode.NodejsFunction(this, "AddMovieFn", {
+        const newBookFn = new lambdanode.NodejsFunction(this, "AddBookFn", {
           architecture: lambda.Architecture.ARM_64,
           runtime: lambda.Runtime.NODEJS_22_X,
-          entry: `${__dirname}/../lambdas/addMovie.ts`,
+          entry: `${__dirname}/../lambdas/addBook.ts`,
           timeout: cdk.Duration.seconds(10),
           memorySize: 128,
           environment: {
-            TABLE_NAME: moviesTable.tableName,
+            TABLE_NAME: booksTable.tableName,
             REGION: "eu-west-1",
           },
         });
 
-        const deleteMovieFn = new lambdanode.NodejsFunction(
+        const deleteBookFn = new lambdanode.NodejsFunction(
           this,
-          "DeleteMovieFn",
+          "DeleteBookFn",
           {
             architecture: lambda.Architecture.ARM_64,
             runtime: lambda.Runtime.NODEJS_18_X,
-            entry: `${__dirname}/../lambdas/deleteMovie.ts`,
+            entry: `${__dirname}/../lambdas/deleteBook.ts`,
             timeout: cdk.Duration.seconds(10),
             memorySize: 128,
             environment: {
-              TABLE_NAME: moviesTable.tableName,
+              TABLE_NAME: booksTable.tableName,
               REGION: 'eu-west-1',
             },
           }
           );
 
-          const getMovieCastMembersFn = new lambdanode.NodejsFunction(
-            this,
-            "GetCastMemberFn",
-            {
-              architecture: lambda.Architecture.ARM_64,
-              runtime: lambda.Runtime.NODEJS_22_X,
-              entry: `${__dirname}/../lambdas/getMovieCastMember.ts`,
-              timeout: cdk.Duration.seconds(10),
-              memorySize: 128,
-              environment: {
-                TABLE_NAME: movieCastsTable.tableName,
-                REGION: "eu-west-1",
-              },
-            }
-          );
         
-          new custom.AwsCustomResource(this, "moviesddbInitData", {
+          new custom.AwsCustomResource(this, "booksddbInitData", {
             onCreate: {
               service: "DynamoDB",
               action: "batchWriteItem",
               parameters: {
                 RequestItems: {
-                  [moviesTable.tableName]: generateBatch(movies),
-                  [movieCastsTable.tableName]: generateBatch(movieCasts),  // Added
+                  [booksTable.tableName]: generateBatch(books)
                 },
               },
-              physicalResourceId: custom.PhysicalResourceId.of("moviesddbInitData"), //.of(Date.now().toString()),
+              physicalResourceId: custom.PhysicalResourceId.of("booksddbInitData"),
             },
             policy: custom.AwsCustomResourcePolicy.fromSdkCalls({
-              resources: [moviesTable.tableArn, movieCastsTable.tableArn],  // Includes movie cast
+              resources: [booksTable.tableArn],  
             }),
           });
       
         
         // Permissions 
-        moviesTable.grantReadData(getMovieByIdFn)
-        moviesTable.grantReadData(getAllMoviesFn)
-        moviesTable.grantReadWriteData(newMovieFn)
-        moviesTable.grantReadWriteData(deleteMovieFn)
-        movieCastsTable.grantReadData(getMovieCastMembersFn)
-        movieCastsTable.grantReadData(getMovieByIdFn);
+        booksTable.grantReadData(getBookByIdFn)
+        booksTable.grantReadData(getAllBooksFn)
+        booksTable.grantReadWriteData(newBookFn)
+        booksTable.grantReadWriteData(deleteBookFn);
         
         // REST API 
         const api = new apig.RestApi(this, "RestAPI", {
@@ -154,34 +120,28 @@ export class RestAPIStack extends cdk.Stack {
           },
         });
 
-        // Movies endpoint
-        const moviesEndpoint = api.root.addResource("movies");
-        moviesEndpoint.addMethod(
+        // Books endpoint
+        const booksEndpoint = api.root.addResource("books");
+        booksEndpoint.addMethod(
           "GET",
-          new apig.LambdaIntegration(getAllMoviesFn, { proxy: true })
+          new apig.LambdaIntegration(getAllBooksFn, { proxy: true })
         );
         
-        moviesEndpoint.addMethod(
+        booksEndpoint.addMethod(
           "POST",
-          new apig.LambdaIntegration(newMovieFn, { proxy: true })
+          new apig.LambdaIntegration(newBookFn, { proxy: true })
         );
 
-        // Detail movie endpoint
-        const specificMovieEndpoint = moviesEndpoint.addResource("{movieId}");
-        specificMovieEndpoint.addMethod(
+        // Detail book endpoint
+        const specificBookEndpoint = booksEndpoint.addResource("{bookId}");
+        specificBookEndpoint.addMethod(
           "GET",
-          new apig.LambdaIntegration(getMovieByIdFn, { proxy: true })
+          new apig.LambdaIntegration(getBookByIdFn, { proxy: true })
         );
 
-        specificMovieEndpoint.addMethod(
+        specificBookEndpoint.addMethod(
           "DELETE",
-          new apig.LambdaIntegration(deleteMovieFn, { proxy: true })
-        );
-
-        const movieCastEndpoint = moviesEndpoint.addResource("cast");
-        movieCastEndpoint.addMethod(
-          "GET",
-          new apig.LambdaIntegration(getMovieCastMembersFn, { proxy: true })
+          new apig.LambdaIntegration(deleteBookFn, { proxy: true })
         );
       }
     }
