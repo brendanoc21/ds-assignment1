@@ -9,24 +9,24 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {    
   try {
     console.log("[EVENT]", JSON.stringify(event));
     const pathParameters  = event?.pathParameters;
-    const movieId = pathParameters?.movieId ? parseInt(pathParameters.movieId) : undefined;
+    const bookId = pathParameters?.bookId ? parseInt(pathParameters.bookId) : undefined;
     const queryParams = event?.queryStringParameters;
     const includeCast = queryParams?.cast === "true";
 
-    if (!movieId) {
+    if (!bookId) {
       return {
         statusCode: 404,
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ Message: "Missing movie Id" }),
+        body: JSON.stringify({ Message: "Missing book Id" }),
       };
     }
 
     const commandOutput = await ddbDocClient.send(
       new GetCommand({
         TableName: process.env.TABLE_NAME,
-        Key: { id: movieId },
+        Key: { id: bookId },
       })
     );
     console.log("GetCommand response: ", commandOutput);
@@ -36,7 +36,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {    
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ Message: "Invalid movie Id" }),
+        body: JSON.stringify({ Message: "Invalid book Id" }),
       };
     }
 
@@ -48,9 +48,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {    
       const castResponse = await ddbDocClient.send(
         new QueryCommand({
           TableName: process.env.CAST_TABLE_NAME,
-          KeyConditionExpression: "movieId = :m",
+          KeyConditionExpression: "bookId = :m",
           ExpressionAttributeValues:{
-            ":m": movieId
+            ":m": bookId
           },
         })
       );

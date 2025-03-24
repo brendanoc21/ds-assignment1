@@ -1,42 +1,40 @@
 import { APIGatewayProxyHandlerV2 } from "aws-lambda";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, DeleteCommand } from "@aws-sdk/lib-dynamodb";
-import Ajv from "ajv";
-import schema from "../shared/types.schema.json";
 
-const ajv = new Ajv();
-const isValidBodyParams = ajv.compile(schema.definitions["Movie"] || {});
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
 const ddbDocClient = createDDbDocClient();
 
-export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
+export const handler: APIGatewayProxyHandlerV2 = async (event, context) => { 
   try {
-    console.log("[EVENT]", JSON.stringify(event));
-    
-    const movieId = event?.pathParameters?.movieId;
-    if (!movieId) {
+    // Print Event
+    console.log("Event: ", event);
+
+    const commandOutput = await ddbDocClient.send(
+      new ScanCommand({
+        TableName: process.env.TABLE_NAME,
+      })
+    );
+    if (!commandOutput.Items) {
       return {
-        statusCode: 500,
+        statusCode: 404,
         headers: {
           "content-type": "application/json",
         },
-        body: JSON.stringify({ message: "Missing request id" }),
+        body: JSON.stringify({ Message: "Invalid book Id" }),
       };
     }
-    
+    const body = {
+      data: commandOutput.Items,
+    };
 
-    const commandOutput = await ddbDocClient.send(
-      new DeleteCommand({
-        TableName: process.env.TABLE_NAME,
-        Key: { id : parseInt(movieId) },
-      })
-    );
+    // Return Response
     return {
-      statusCode: 201,
+      statusCode: 200,
       headers: {
         "content-type": "application/json",
       },
-      body: JSON.stringify({ message: "Movie deleted" }),
+      body: JSON.stringify(body),
     };
   } catch (error: any) {
     console.log(JSON.stringify(error));
